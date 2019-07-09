@@ -8,14 +8,18 @@ class Donation_Model extends CI_Model{
    
    function get_donation(){
        
-       $blood_unit_num = "";
-       if($this->input->post('blood_unit_num')){
-           $blood_unit_num = $this->input->post('blood_unit_num');
-       }else{
-           return false;
-       }
+		$hospital=$this->session->userdata('hospital');
+		$hospital_id=$hospital['hospital_id'];
+		
+		$blood_unit_num = "";
+		
+		if($this->input->post('blood_unit_num')){
+			$blood_unit_num = $this->input->post('blood_unit_num');
+		}else{
+			return false;
+		}
        
-       $this->db->select('bb_donation.blood_unit_num, bb_donation.segment_num, bb_donation.bag_type, '
+		$this->db->select('bb_donation.blood_unit_num, bb_donation.segment_num, bb_donation.bag_type, '
                . 'bb_donation.donation_date, bb_donation.donation_time, bb_donation.collected_by, bb_donation.camp_id, bb_donation.status_id,'
                . 'blood_donor.name, blood_donor.phone, blood_donor.email, blood_grouping.*, '
                . 'blood_screening.*,'
@@ -28,7 +32,13 @@ class Donation_Model extends CI_Model{
             ->where('bb_donation.blood_unit_num', $blood_unit_num)
             ->where('bb_donation.status_id <','7')
             ->where('blood_inventory.status_id <=','7')
-            ->where('MONTH(bb_donation.donation_date) - MONTH(NOW()) < 3');
+            ->where('MONTH(bb_donation.donation_date) - MONTH(NOW()) < 3')
+			/**
+			 * Multi hospital support
+			 * 
+			 * Added By : Pranay On 20170521
+			 */
+            ->where('bb_donation.hospital_id', $hospital_id);
        
        $query = $this->db->get();
       
@@ -40,8 +50,7 @@ class Donation_Model extends CI_Model{
        }
    }
    
-   function update_blood_bag_info(){
-       
+   function update_blood_bag_info(){		
         $this->db->select('bb_donation.donation_id, bb_donation.blood_unit_num, bb_donation.segment_num, bb_donation.bag_type, bb_donation.camp_id, blood_inventory.volume')
                ->from('bb_donation')
                ->join('blood_inventory','bb_donation.donation_id = blood_inventory.donation_id')
@@ -58,7 +67,7 @@ class Donation_Model extends CI_Model{
                .$result[0]->volume.'-'
                .$result[0]->camp_id;
         $staff_id = $this->session->userdata('staff_id');
-       
+        
         $data_trail = array(
            'trail' => $log,
            'staff_id' => $staff_id
@@ -76,11 +85,15 @@ class Donation_Model extends CI_Model{
         );
        
         $this->db->trans_start();
-        $this->db->insert('bloodbank_edit_log', $data_trail); 
+        $this->db->insert('bloodbank_edit_log', $data_trail);
+		
         $this->db->where('donation_id', $this->input->post('donation_id'));
-        $this->db->update('bb_donation', $blood_bag_data);
+		$this->db->update('bb_donation', $blood_bag_data);
+		
+		
         $this->db->where('donation_id', $this->input->post('donation_id'));
-        $this->db->update('blood_inventory', $blood_inventory);
+		$this->db->update('blood_inventory', $blood_inventory);
+		
         $this->db->trans_complete();
         
         return $this->db->trans_status();
@@ -94,7 +107,7 @@ class Donation_Model extends CI_Model{
                ->where('blood_grouping.donation_id',$this->input->post('donation_id'));
        
         $query = $this->db->get();
-        echo $this->db->last_query();
+        //echo $this->db->last_query();
         $result = $query->result();
         $donor_id='';
         if($result){
@@ -150,7 +163,6 @@ class Donation_Model extends CI_Model{
             'blood_group'=>$blood_group,
             'sub_group'=>$sub_group
         );        
-        var_dump($blood_group_data);
         $this->db->trans_start();
         $this->db->insert('bloodbank_edit_log', $data_trail); 
         $this->db->where('donation_id', $this->input->post('donation_id'));
@@ -284,6 +296,30 @@ class Donation_Model extends CI_Model{
         
         return $this->db->trans_status();
    }
+
+   /* removing donor from bleeding and inserting the reason for cancelling*/
+   function remove_donation_from_bleeding($donation_id){
+        $this->db->select('bb_donation.donation_id, bb_donation.blood_unit_num, bb_donation.segment_num, bb_donation.bag_type, bb_donation.camp_id, blood_inventory.volume')
+        ->from('bb_donation')
+        ->join('blood_inventory','bb_donation.donation_id = blood_inventory.donation_id')
+        ->where('bb_donation.donation_id',$this->input->post('donation_id'));
+        $bleeding_cancel_details =array(
+            'donation_id'=>$donation_id,
+            'reason'=>$this->input->post('reason_for_cancel'),
+        );
+        $this->db->trans_start();
+        $this->db->where('donation_id',$donation_id);
+        $this->db->where('status_id','2');
+        $this->db->update('bb_donation',array('status_id'=>'-1')); //changing the status id from 2 to -1
+        $this->db->insert('bb_donation_cancel',$bleeding_cancel_details);
+        $this->db->trans_complete();
+        if($this->db->trans_status()==TRUE){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }// remove_donation_from_bleeding
    
 }
 

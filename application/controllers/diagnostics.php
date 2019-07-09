@@ -428,6 +428,7 @@ function add($type=""){
 	if($type=="test_area"){
 			$title="Test Area";
 			$config=array(array('field' => 'test_area','label'=>'Test Area','rules'=>'required|trim|xss_clean' ));
+			$this->data['departments']=$this->staff_model->get_department(-1);
 		}
 	if($type=="antibiotic"){
 			$title="antibiotic";
@@ -454,7 +455,7 @@ function add($type=""){
 			$config=array(array('field' => 'lab_unit','label'=>'Lab Unit','rules'=>'required|trim|xss_clean' ));
 
 	}
-	   $this->data['title']=$title;
+	$this->data['title']=$title;
 	$page="pages/diagnostics/add_".$type."_form";
 	$this->load->view('templates/header',$this->data);
 	$this->load->view('templates/leftnav');
@@ -714,7 +715,7 @@ function edit($type="")
     function lab_turnaround_time(){
         if(!$this->session->userdata('logged_in')){
             show_404();
-	}
+		}
         $this->load->helper('form');
         $this->data['user_id']=$user['user_id'];
         $this->data['title'] ="Lab Turn Around Time";
@@ -731,6 +732,30 @@ function edit($type="")
         $this->data['areas']=$this->staff_model->get_area();
         $this->load->view($page,$this->data);
         $this->load->view('templates/footer');
-    }
+	}
+
+	function add_test_name(){
+		$title="Test Name";
+			$config=array(
+				array(
+					'field' => 'test_name',
+					'label'=>'Test Name',
+					'rules'=>'required|xss_clean' 
+				),
+				array(
+					'field' => 'test_method',
+					'label'=>'Test Method',
+					'rules'=>'required|xss_clean' 
+				),
+				array(
+					'field' => 'test_area',
+					'label'=>'Test Area',
+					'rules'=>'required|xss_clean' 
+				)
+			);
+			$this->data['test_methods']=$this->masters_model->get_data("test_method");
+			$this->data['test_areas'] = $this->masters_model->get_data("test_area");
+			$this->data['lab_units'] = $this->masters_model->get_data("lab_unit");
+	}
 }
 ?>
